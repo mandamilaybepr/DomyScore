@@ -1,5 +1,9 @@
 name: Update JSON
 
+permissions:
+  contents: write  # Pour checkout, commit, push de data.json
+  actions: write   # Pour déclencher d'autres actions si besoin
+
 on:
   workflow_dispatch:
     inputs:
@@ -14,7 +18,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GH_TOKEN }}  # Secret GitHub pour checkout/push
+          token: ${{ secrets.GH_TOKEN }}  # Utilise votre fine-grained token
 
       - name: Install jq
         run: sudo apt-get install jq
@@ -22,6 +26,8 @@ jobs:
       - name: Update data.json
         run: |
           new_data='${{ github.event.inputs.new_data }}'
+          # Si data.json n'existe pas, créez-le
+          if [ ! -f data.json ]; then echo '[]' > data.json; fi
           jq --argjson new "$new_data" '. += $new' data.json > temp.json
           mv temp.json data.json
 
