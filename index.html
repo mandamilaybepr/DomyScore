@@ -199,18 +199,24 @@
       
 
         // Fonction pour récupérer l'historique depuis data.json (async, avec cache-busting)
-        async function getHistory() {
-            try {
-                const response = await fetch(`data.json?t=${Date.now()}`);
-                if (!response.ok) {
-                    throw new Error('Fichier data.json non trouvé ou erreur.');
-                }
-                return await response.json();
-            } catch (error) {
-                console.error('Erreur lors du chargement de data.json:', error);
-                return []; // Retourne vide si erreur
+       async function getHistory() {
+    try {
+        const response = await fetch(`https://mandamilaybepr.github.io/DomyScore/data.json?t=${Date.now()}`, {
+            headers: {
+                'Cache-Control': 'no-cache'
             }
+        });
+        if (!response.ok) {
+            throw new Error(`Erreur HTTP ${response.status}: Fichier data.json non trouvé ou erreur.`);
         }
+        const data = await response.json();
+        console.log('Data chargée:', data); // Log pour débogage
+        return data;
+    } catch (error) {
+        console.error('Erreur lors du chargement de data.json:', error);
+        return [];
+    }
+}
         
         // Fonction pour mettre à jour l'affichage des scores temporaires
         function updateTempDisplay() {
