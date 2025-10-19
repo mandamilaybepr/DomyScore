@@ -4,20 +4,162 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Prise de Scores</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .hidden { display: none; }
-        .player { margin: 10px 0; display: flex; align-items: center; }
-        .player label { margin-right: 10px; }
-        .player input { margin-right: 10px; }
-        .player button { padding: 5px 10px; }
-        button { margin: 5px; padding: 10px; }
-        #history { margin-top: 20px; border: 1px solid #ccc; padding: 10px; }
-        #tempScores { margin-top: 20px; border: 1px solid #ccc; padding: 10px; }
+        /* Général */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #e0e7ff, #f3e8ff);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1, h2 {
+            color: #1e3a8a;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 500;
+        }
+
+        /* Boutons */
+        button {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s, box-shadow 0.3s;
+            margin: 10px;
+        }
+        button:hover {
+            background-color: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+
+        /* Classe cachée */
+        .hidden {
+            display: none;
+        }
+
+        /* Conteneurs (cartes) */
+        #newGameForm, #gameArea, #history, #tempScores {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            width: 100%;
+            max-width: 600px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        /* Joueurs */
+        .player {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+            gap: 10px;
+        }
+        .player label {
+            font-weight: 500;
+            color: #1f2937;
+            min-width: 100px;
+        }
+        .player input[type="number"] {
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            width: 100px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        .player input[type="number"]:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 5px rgba(59, 130, 246, 0.3);
+        }
+        .player input[readonly] {
+            background: #f3f4f6;
+            cursor: default;
+        }
+        .player button {
+            padding: 8px 12px;
+            font-size: 0.9rem;
+        }
+
+        /* Formulaire joueurs */
+        #newGameForm input[type="text"] {
+            padding: 10px;
+            margin: 10px 0;
+            width: 100%;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        #newGameForm input[type="text"]:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 5px rgba(59, 130, 246, 0.3);
+        }
+
+        /* Historique et scores temporaires */
+        #history, #tempScores {
+            background: #f9fafb;
+        }
+        #history ul, #tempScores ul {
+            list-style: none;
+            padding: 0;
+        }
+        #history li, #tempScores li {
+            padding: 5px 0;
+            color: #374151;
+        }
+
+        /* Animation fade-in */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Responsivité */
+        @media (max-width: 600px) {
+            h1 { font-size: 2rem; }
+            h2 { font-size: 1.2rem; }
+            #newGameForm, #gameArea, #history, #tempScores {
+                padding: 15px;
+                margin: 10px 0;
+            }
+            .player { flex-direction: column; align-items: flex-start; }
+            .player input, .player label { width: 100%; margin: 5px 0; }
+            button { width: 100%; }
+        }
     </style>
 </head>
 <body>
-    <h1>Page de Prise de Scores</h1>
+    <h1>Domy Chez RAFAH</h1>
     
     <button id="newGameBtn">Nouvelle Partie</button>
     <button id="stopGameBtn" class="hidden">Arrêt de Partie</button>
@@ -51,10 +193,10 @@
         const TEMP_KEY = 'tempGames';
         
         // Configuration GitHub (à personnaliser)
-        const GITHUB_OWNER = 'mandamilaybepr';  // Remplacez par votre nom d'utilisateur GitHub
-        const GITHUB_REPO = 'DomyScore';      // Remplacez par le nom de votre dépôt (ex. : mon-site-statique)
-        const WORKFLOW_ID = 'update-json.yml'; // Nom du fichier workflow
-        const PAT = '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';         // Remplacez par votre Personal Access Token GitHub (scopes: repo, workflow)
+        const GITHUB_OWNER = 'mandamilaybepr';
+        const GITHUB_REPO = 'DomyScore';
+        const WORKFLOW_ID = 'update-json.yml';
+        const PAT = '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';
 
         // Fonction pour récupérer l'historique depuis data.json (async, avec cache-busting)
         async function getHistory() {
@@ -106,29 +248,24 @@
 
         // Variables pour la partie courante
         let currentPlayers = [];
-        let currentScores = {}; // Scores totaux cumulés
+        let currentScores = {};
 
         // Bouton Nouvelle Partie
         document.getElementById('newGameBtn').addEventListener('click', () => {
-            // Vérifier si une partie est en cours
             if (!document.getElementById('gameArea').classList.contains('hidden')) {
                 alert('Veuillez arrêter la partie en cours avant d\'en commencer une nouvelle.');
                 return;
             }
             
-            // Afficher le formulaire
             document.getElementById('newGameForm').classList.remove('hidden');
             document.getElementById('gameArea').classList.add('hidden');
             document.getElementById('stopGameBtn').classList.add('hidden');
             document.getElementById('uploadBtn').classList.add('hidden');
             document.getElementById('history').classList.add('hidden');
             
-            // Vider les champs du formulaire
             document.getElementById('player1').value = '';
             document.getElementById('player2').value = '';
             document.getElementById('player3').value = '';
-            
-            // NE PAS cacher tempScores : reste affiché si des temporaires existent
         });
 
         // Bouton Confirmer
@@ -172,7 +309,7 @@
             
             currentScores[player] += roundScore;
             totalInput.value = currentScores[player];
-            roundInput.value = 0; // Réinitialiser pour le prochain round
+            roundInput.value = 0;
         };
 
         // Bouton Arrêt de Partie
@@ -193,7 +330,6 @@
             
             document.getElementById('gameArea').classList.add('hidden');
             document.getElementById('stopGameBtn').classList.add('hidden');
-            // uploadBtn reste visible pour téléverser
         });
 
         // Bouton Téléversement (déclenche GitHub Action avec token hardcodé)
@@ -216,7 +352,7 @@
                         'X-GitHub-Api-Version': '2022-11-28'
                     },
                     body: JSON.stringify({
-                        ref: 'main',  // Ou votre branche principale
+                        ref: 'main',
                         inputs: {
                             new_data: newData
                         }
