@@ -21,7 +21,7 @@
     
     <button id="newGameBtn">Nouvelle Partie</button>
     <button id="stopGameBtn" class="hidden">Arrêt de Partie</button>
-    <button id="uploadBtn" class="hidden">Téléversement (Sauvegarder dans JSON)</button>
+    <button id="uploadBtn" class="hidden">Téléversement (Sauvegarder dans JSON via GitHub Action)</button>
     <button id="showHistoryBtn">Afficher Historique</button>
 
     <!-- Formulaire pour noms des joueurs -->
@@ -47,20 +47,29 @@
     <div id="tempScores" class="hidden"></div>
 
     <script>
-        // Clés de stockage
-        const HISTORY_KEY = 'scoresHistory';
+        // Clé pour les temporaires (localStorage)
         const TEMP_KEY = 'tempGames';
         
-        // Récupérer l'historique (tableau de parties)
-        function getHistory() {
-            return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+        // Configuration GitHub (à personnaliser)
+        const GITHUB_OWNER = 'mandamilaybepr';  // Remplacez par votre nom d'utilisateur GitHub
+        const GITHUB_REPO = 'DomyScore';      // Remplacez par le nom de votre dépôt (ex. : mon-site-statique)
+        const WORKFLOW_ID = 'update-json.yml'; // Nom du fichier workflow
+        const PAT = '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';         // Remplacez par votre Personal Access Token GitHub (scopes: repo, workflow)
+
+        // Fonction pour récupérer l'historique depuis data.json (async, avec cache-busting)
+        async function getHistory() {
+            try {
+                const response = await fetch(`data.json?t=${Date.now()}`);
+                if (!response.ok) {
+                    throw new Error('Fichier data.json non trouvé ou erreur.');
+                }
+                return await response.json();
+            } catch (error) {
+                console.error('Erreur lors du chargement de data.json:', error);
+                return []; // Retourne vide si erreur
+            }
         }
         
-        // Sauvegarder l'historique
-        function saveHistory(history) {
-            localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-        }
-
         // Fonction pour mettre à jour l'affichage des scores temporaires
         function updateTempDisplay() {
             const tempDiv = document.getElementById('tempScores');
@@ -187,8 +196,8 @@
             // uploadBtn reste visible pour téléverser
         });
 
-        // Bouton Téléversement
-        document.getElementById('uploadBtn').addEventListener('click', () => {
+        // Bouton Téléversement (déclenche GitHub Action avec token hardcodé)
+        document.getElementById('uploadBtn').addEventListener('click', async () => {
             let tempGames = JSON.parse(localStorage.getItem(TEMP_KEY) || '[]');
             
             if (tempGames.length === 0) {
@@ -196,26 +205,47 @@
                 return;
             }
             
-            const history = getHistory();
-            history.push(...tempGames);
-            saveHistory(history);
+            const newData = JSON.stringify(tempGames);
             
-            localStorage.removeItem(TEMP_KEY);
-            updateTempDisplay();
-            
-            alert(`${tempGames.length} partie(s) temporaire(s) sauvegardée(s) dans l\'historique.`);
-            
-            document.getElementById('uploadBtn').classList.add('hidden');
+            try {
+                const response = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/actions/workflows/${WORKFLOW_ID}/dispatches`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `token ${PAT}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'X-GitHub-Api-Version': '2022-11-28'
+                    },
+                    body: JSON.stringify({
+                        ref: 'main',  // Ou votre branche principale
+                        inputs: {
+                            new_data: newData
+                        }
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP : ${response.status}`);
+                }
+                
+                alert(`${tempGames.length} partie(s) envoyée(s) à GitHub Action. Le fichier data.json sera mis à jour dans le dépôt. Rafraîchissez la page dans quelques minutes pour voir l'historique mis à jour.`);
+                
+                localStorage.removeItem(TEMP_KEY);
+                updateTempDisplay();
+                
+                document.getElementById('uploadBtn').classList.add('hidden');
+            } catch (error) {
+                alert(`Erreur lors du déclenchement de l'action : ${error.message}. Vérifiez votre token, le nom du dépôt, etc.`);
+            }
         });
 
-        // Bouton Afficher Historique
-        document.getElementById('showHistoryBtn').addEventListener('click', () => {
+        // Bouton Afficher Historique (depuis data.json)
+        document.getElementById('showHistoryBtn').addEventListener('click', async () => {
             const historyDiv = document.getElementById('history');
-            historyDiv.innerHTML = '<h2>Historique des Scores</h2>';
-            const history = getHistory();
+            historyDiv.innerHTML = '<h2>Historique des Scores (depuis data.json)</h2>';
+            const history = await getHistory();
             
             if (history.length === 0) {
-                historyDiv.innerHTML += '<p>Aucun score enregistré.</p>';
+                historyDiv.innerHTML += '<p>Aucun score enregistré dans data.json.</p>';
             } else {
                 history.forEach((game, index) => {
                     const gameDiv = document.createElement('div');

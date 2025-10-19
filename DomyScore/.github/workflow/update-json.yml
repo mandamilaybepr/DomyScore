@@ -1,0 +1,32 @@
+name: Update JSON
+
+on:
+  workflow_dispatch:
+    inputs:
+      new_data:
+        description: 'Nouvelles parties JSON (tableau)'
+        required: true
+
+jobs:
+  update-json:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Installer jq
+        run: sudo apt-get install jq
+
+      - name: Mettre à jour data.json
+        run: |
+          new_data='${{ github.event.inputs.new_data }}'
+          jq --argjson new "$new_data" '. += $new' data.json > temp.json
+          mv temp.json data.json
+
+      - name: Commit et push les changements
+        run: |
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'actions@github.com'
+          git add data.json
+          git commit -m 'Mise à jour des scores via dispatch' || echo "Pas de changements"
+          git push
