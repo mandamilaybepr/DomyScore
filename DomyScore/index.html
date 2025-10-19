@@ -1,11 +1,250 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Prise de Scores</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .hidden { display: none; }
+        .player { margin: 10px 0; display: flex; align-items: center; }
+        .player label { margin-right: 10px; }
+        .player input { margin-right: 10px; }
+        .player button { padding: 5px 10px; }
+        button { margin: 5px; padding: 10px; }
+        #history { margin-top: 20px; border: 1px solid #ccc; padding: 10px; }
+        #tempScores { margin-top: 20px; border: 1px solid #ccc; padding: 10px; }
+    </style>
 </head>
 <body>
+    <h1>Page de Prise de Scores</h1>
     
+    <button id="newGameBtn">Nouvelle Partie</button>
+    <button id="stopGameBtn" class="hidden">Arrêt de Partie</button>
+    <button id="uploadBtn" class="hidden">Téléversement (Sauvegarder dans JSON)</button>
+    <button id="showHistoryBtn">Afficher Historique</button>
+
+    <!-- Formulaire pour noms des joueurs -->
+    <div id="newGameForm" class="hidden">
+        <h2>Entrez les noms des 3 joueurs</h2>
+        <input type="text" id="player1" placeholder="Joueur 1" required>
+        <input type="text" id="player2" placeholder="Joueur 2" required>
+        <input type="text" id="player3" placeholder="Joueur 3" required>
+        <button id="confirmBtn">Confirmer et Lancer la Partie</button>
+    </div>
+
+    <!-- Zone de jeu -->
+    <div id="gameArea" class="hidden">
+        <h2>Partie en Cours</h2>
+        <p>Saisissez les scores par round pour chaque joueur et confirmez avec le bouton "+". Les scores se cumulent au fil des rounds.</p>
+        <div id="players"></div>
+    </div>
+
+    <!-- Historique -->
+    <div id="history" class="hidden"></div>
+
+    <!-- Scores temporaires (toujours en bas, affiché quand il y en a) -->
+    <div id="tempScores" class="hidden"></div>
+
+    <script>
+        // Clés de stockage
+        const HISTORY_KEY = 'scoresHistory';
+        const TEMP_KEY = 'tempGames';
+        
+        // Récupérer l'historique (tableau de parties)
+        function getHistory() {
+            return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+        }
+        
+        // Sauvegarder l'historique
+        function saveHistory(history) {
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+        }
+
+        // Fonction pour mettre à jour l'affichage des scores temporaires
+        function updateTempDisplay() {
+            const tempDiv = document.getElementById('tempScores');
+            let tempGames = JSON.parse(localStorage.getItem(TEMP_KEY) || '[]');
+            
+            tempDiv.innerHTML = '<h2>Scores Temporaires (Archivés)</h2>';
+            
+            if (tempGames.length === 0) {
+                tempDiv.innerHTML += '<p>Aucun score temporaire archivé.</p>';
+                tempDiv.classList.add('hidden');
+            } else {
+                tempGames.forEach((game, index) => {
+                    const gameDiv = document.createElement('div');
+                    let title = `<strong>Partie Temporaire ${index + 1}`;
+                    if (game.date) {
+                        title += ` (${new Date(game.date).toLocaleDateString('fr-FR')})`;
+                    }
+                    title += ' :</strong>';
+                    gameDiv.innerHTML = title;
+                    
+                    const ul = document.createElement('ul');
+                    game.players.forEach(player => {
+                        const li = document.createElement('li');
+                        li.textContent = `${player}: ${game.scores[player]} points`;
+                        ul.appendChild(li);
+                    });
+                    gameDiv.appendChild(ul);
+                    
+                    tempDiv.appendChild(gameDiv);
+                });
+                tempDiv.classList.remove('hidden');
+            }
+        }
+
+        // Variables pour la partie courante
+        let currentPlayers = [];
+        let currentScores = {}; // Scores totaux cumulés
+
+        // Bouton Nouvelle Partie
+        document.getElementById('newGameBtn').addEventListener('click', () => {
+            // Vérifier si une partie est en cours
+            if (!document.getElementById('gameArea').classList.contains('hidden')) {
+                alert('Veuillez arrêter la partie en cours avant d\'en commencer une nouvelle.');
+                return;
+            }
+            
+            // Afficher le formulaire
+            document.getElementById('newGameForm').classList.remove('hidden');
+            document.getElementById('gameArea').classList.add('hidden');
+            document.getElementById('stopGameBtn').classList.add('hidden');
+            document.getElementById('uploadBtn').classList.add('hidden');
+            document.getElementById('history').classList.add('hidden');
+            
+            // Vider les champs du formulaire
+            document.getElementById('player1').value = '';
+            document.getElementById('player2').value = '';
+            document.getElementById('player3').value = '';
+            
+            // NE PAS cacher tempScores : reste affiché si des temporaires existent
+        });
+
+        // Bouton Confirmer
+        document.getElementById('confirmBtn').addEventListener('click', () => {
+            const p1 = document.getElementById('player1').value.trim();
+            const p2 = document.getElementById('player2').value.trim();
+            const p3 = document.getElementById('player3').value.trim();
+            
+            if (p1 && p2 && p3) {
+                currentPlayers = [p1, p2, p3];
+                currentScores = { [p1]: 0, [p2]: 0, [p3]: 0 };
+                
+                const playersDiv = document.getElementById('players');
+                playersDiv.innerHTML = '';
+                currentPlayers.forEach(player => {
+                    const div = document.createElement('div');
+                    div.className = 'player';
+                    div.innerHTML = `
+                        <label>${player} :</label>
+                        <input type="number" id="total_${player}" value="0" readonly>
+                        <input type="number" id="round_${player}" value="0" placeholder="Score du round">
+                        <button onclick="addRoundScore('${player}')">+</button>
+                    `;
+                    playersDiv.appendChild(div);
+                });
+                
+                document.getElementById('newGameForm').classList.add('hidden');
+                document.getElementById('gameArea').classList.remove('hidden');
+                document.getElementById('stopGameBtn').classList.remove('hidden');
+                document.getElementById('uploadBtn').classList.remove('hidden');
+            } else {
+                alert('Veuillez entrer les noms des 3 joueurs.');
+            }
+        });
+
+        // Fonction pour ajouter le score du round au total
+        window.addRoundScore = function(player) {
+            const roundInput = document.getElementById(`round_${player}`);
+            const totalInput = document.getElementById(`total_${player}`);
+            const roundScore = parseInt(roundInput.value) || 0;
+            
+            currentScores[player] += roundScore;
+            totalInput.value = currentScores[player];
+            roundInput.value = 0; // Réinitialiser pour le prochain round
+        };
+
+        // Bouton Arrêt de Partie
+        document.getElementById('stopGameBtn').addEventListener('click', () => {
+            const gameData = {
+                players: [...currentPlayers],
+                scores: { ...currentScores },
+                date: new Date().toISOString()
+            };
+            
+            let tempGames = JSON.parse(localStorage.getItem(TEMP_KEY) || '[]');
+            tempGames.push(gameData);
+            localStorage.setItem(TEMP_KEY, JSON.stringify(tempGames));
+            
+            updateTempDisplay();
+            
+            alert('Partie arrêtée et archivée temporairement.');
+            
+            document.getElementById('gameArea').classList.add('hidden');
+            document.getElementById('stopGameBtn').classList.add('hidden');
+            // uploadBtn reste visible pour téléverser
+        });
+
+        // Bouton Téléversement
+        document.getElementById('uploadBtn').addEventListener('click', () => {
+            let tempGames = JSON.parse(localStorage.getItem(TEMP_KEY) || '[]');
+            
+            if (tempGames.length === 0) {
+                alert('Aucune partie temporaire à sauvegarder. Arrêtez la partie en cours si nécessaire.');
+                return;
+            }
+            
+            const history = getHistory();
+            history.push(...tempGames);
+            saveHistory(history);
+            
+            localStorage.removeItem(TEMP_KEY);
+            updateTempDisplay();
+            
+            alert(`${tempGames.length} partie(s) temporaire(s) sauvegardée(s) dans l\'historique.`);
+            
+            document.getElementById('uploadBtn').classList.add('hidden');
+        });
+
+        // Bouton Afficher Historique
+        document.getElementById('showHistoryBtn').addEventListener('click', () => {
+            const historyDiv = document.getElementById('history');
+            historyDiv.innerHTML = '<h2>Historique des Scores</h2>';
+            const history = getHistory();
+            
+            if (history.length === 0) {
+                historyDiv.innerHTML += '<p>Aucun score enregistré.</p>';
+            } else {
+                history.forEach((game, index) => {
+                    const gameDiv = document.createElement('div');
+                    let title = `<strong>Partie ${index + 1}`;
+                    if (game.date) {
+                        title += ` (${new Date(game.date).toLocaleDateString('fr-FR')})`;
+                    }
+                    title += ' :</strong>';
+                    gameDiv.innerHTML = title;
+                    
+                    const ul = document.createElement('ul');
+                    if (game.players) {
+                        game.players.forEach(player => {
+                            const li = document.createElement('li');
+                            li.textContent = `${player}: ${game.scores[player] || 0} points`;
+                            ul.appendChild(li);
+                        });
+                    }
+                    gameDiv.appendChild(ul);
+                    
+                    historyDiv.appendChild(gameDiv);
+                });
+            }
+            
+            historyDiv.classList.remove('hidden');
+        });
+
+        // Initialisation : afficher les temporaires s'il y en a
+        updateTempDisplay();
+    </script>
 </body>
 </html>
